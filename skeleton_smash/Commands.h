@@ -8,19 +8,22 @@
 
 class Command {
 // TODO: Add your data members
- public:
+  const char* cmd_line;
+  public:
   Command(const char* cmd_line);
   virtual ~Command();
   virtual void execute() = 0;
   //virtual void prepare();
   //virtual void cleanup();
-  // TODO: Add your extra methods if needed
+  virtual bool isExternal() = 0;
+  const char* getCmdLine();
 };
 
 class BuiltInCommand : public Command {
  public:
   BuiltInCommand(const char* cmd_line);
   virtual ~BuiltInCommand() {}
+  bool isExternal() override { return false; }
 };
 
 class ExternalCommand : public Command {
@@ -28,6 +31,7 @@ class ExternalCommand : public Command {
   ExternalCommand(const char* cmd_line);
   virtual ~ExternalCommand() {}
   void execute() override;
+  bool isExternal() override { return true; }
 };
 
 class PipeCommand : public Command {
@@ -40,7 +44,7 @@ class PipeCommand : public Command {
 
 class RedirectionCommand : public Command {
  // TODO: Add your data members
- public:
+  public:
   explicit RedirectionCommand(const char* cmd_line);
   virtual ~RedirectionCommand() {}
   void execute() override;
@@ -48,8 +52,16 @@ class RedirectionCommand : public Command {
   //void cleanup() override;
 };
 
+class ChpromptCommand : public BuiltInCommand {
+  public:
+  ChpromptCommand(const char* cmd_line);
+  virtual ~ChpromptCommand() {}
+  void execute() override;
+};
+
 class ChangeDirCommand : public BuiltInCommand {
-// TODO: Add your data members public:
+// TODO: Add your data members 
+  public:
   ChangeDirCommand(const char* cmd_line, char** plastPwd);
   virtual ~ChangeDirCommand() {}
   void execute() override;
@@ -166,7 +178,7 @@ class KillCommand : public BuiltInCommand {
 
 class SmallShell {
  private:
-  // TODO: Add your data members
+  char* prompt;
   SmallShell();
  public:
   Command *CreateCommand(const char* cmd_line);
@@ -180,6 +192,8 @@ class SmallShell {
   }
   ~SmallShell();
   void executeCommand(const char* cmd_line);
+  char* getPrompt();
+  void setPrompt(const char* newPrompt);
   // TODO: add extra methods as needed
 };
 

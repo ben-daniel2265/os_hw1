@@ -91,23 +91,24 @@ SmallShell::~SmallShell() {
 * Creates and returns a pointer to Command class which matches the given command line (cmd_line)
 */
 Command * SmallShell::CreateCommand(const char* cmd_line) {
-	// For example:
-/*
+  // For example:
+
   string cmd_s = _trim(string(cmd_line));
   string firstWord = cmd_s.substr(0, cmd_s.find_first_of(" \n"));
 
   if (firstWord.compare("pwd") == 0) {
-    return new GetCurrDirCommand(cmd_line);
+      return new GetCurrDirCommand(cmd_line);
   }
   else if (firstWord.compare("showpid") == 0) {
     return new ShowPidCommand(cmd_line);
   }
-  else if ...
-  .....
+  else if (firstWord.compare("chprompt") == 0) {
+    return new ChpromptCommand(cmd_line);
+  }
   else {
     return new ExternalCommand(cmd_line);
   }
-  */
+  
   return nullptr;
 }
 
@@ -117,4 +118,26 @@ void SmallShell::executeCommand(const char *cmd_line) {
   // Command* cmd = CreateCommand(cmd_line);
   // cmd->execute();
   // Please note that you must fork smash process for some commands (e.g., external commands....)
+
+  Command* cmd = CreateCommand(cmd_line);
+  if(cmd->isExternal()) {
+    continue;
+  }
+  else{
+    cmd->execute();
+  }
 }
+
+
+void ChpromptCommand::execute() {
+}
+
+void GetCurrDirCommand::execute() {
+}
+
+void ShowPidCommand::execute() {
+}
+
+void ChangeDirCommand::execute() {
+}
+
