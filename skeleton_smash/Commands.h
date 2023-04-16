@@ -10,7 +10,7 @@ class Command {
 // TODO: Add your data members
   const char* cmd_line;
   public:
-  Command(const char* cmd_line);
+  Command(const char* cmd_line) {this->cmd_line = cmd_line;}
   virtual ~Command();
   virtual void execute() = 0;
   //virtual void prepare();
@@ -21,14 +21,14 @@ class Command {
 
 class BuiltInCommand : public Command {
  public:
-  BuiltInCommand(const char* cmd_line);
+  BuiltInCommand(const char* cmd_line) : cmd_line(cmd_line) {}
   virtual ~BuiltInCommand() {}
   bool isExternal() override { return false; }
 };
 
 class ExternalCommand : public Command {
  public:
-  ExternalCommand(const char* cmd_line);
+  ExternalCommand(const char* cmd_line) : cmd_line(cmd_line) {}
   virtual ~ExternalCommand() {}
   void execute() override;
   bool isExternal() override { return true; }
@@ -37,7 +37,7 @@ class ExternalCommand : public Command {
 class PipeCommand : public Command {
   // TODO: Add your data members
  public:
-  PipeCommand(const char* cmd_line);
+  PipeCommand(const char* cmd_line) : cmd_line(cmd_line) {}
   virtual ~PipeCommand() {}
   void execute() override;
 };
@@ -45,7 +45,7 @@ class PipeCommand : public Command {
 class RedirectionCommand : public Command {
  // TODO: Add your data members
   public:
-  explicit RedirectionCommand(const char* cmd_line);
+  explicit RedirectionCommand(const char* cmd_line) : cmd_line(cmd_line) {}
   virtual ~RedirectionCommand() {}
   void execute() override;
   //void prepare() override;
@@ -54,38 +54,39 @@ class RedirectionCommand : public Command {
 
 class ChpromptCommand : public BuiltInCommand {
   public:
-  ChpromptCommand(const char* cmd_line);
+  ChpromptCommand(const char* cmd_line) : cmd_line(cmd_line) {}
   virtual ~ChpromptCommand() {}
   void execute() override;
 };
 
 class ChangeDirCommand : public BuiltInCommand {
 // TODO: Add your data members 
+  char** plastPwd;
   public:
-  ChangeDirCommand(const char* cmd_line, char** plastPwd);
+  ChangeDirCommand(const char* cmd_line, char** plastPwd) : cmd_line(cmd_line) {this->plastPwd = plastPwd;}
   virtual ~ChangeDirCommand() {}
   void execute() override;
 };
 
 class GetCurrDirCommand : public BuiltInCommand {
  public:
-  GetCurrDirCommand(const char* cmd_line);
+  GetCurrDirCommand(const char* cmd_line) : cmd_line(cmd_line) {}
   virtual ~GetCurrDirCommand() {}
   void execute() override;
 };
 
 class ShowPidCommand : public BuiltInCommand {
  public:
-  ShowPidCommand(const char* cmd_line);
+  ShowPidCommand(const char* cmd_line) : cmd_line(cmd_line) {}
   virtual ~ShowPidCommand() {}
   void execute() override;
 };
 
 class JobsList;
 class QuitCommand : public BuiltInCommand {
-// TODO: Add your data members
+  JobsList* jobs;
 public:
-  QuitCommand(const char* cmd_line, JobsList* jobs);
+  QuitCommand(const char* cmd_line, JobsList* jobs) : cmd_line(cmd_line) {this->jobs = jobs;}
   virtual ~QuitCommand() {}
   void execute() override;
 };
@@ -179,7 +180,9 @@ class KillCommand : public BuiltInCommand {
 class SmallShell {
  private:
   char* prompt;
-  SmallShell();
+  char* lastPwd;
+  SmallShell(){this->prompt = "smash";
+               this->lastPwd = NULL}
  public:
   Command *CreateCommand(const char* cmd_line);
   SmallShell(SmallShell const&)      = delete; // disable copy ctor
@@ -194,6 +197,8 @@ class SmallShell {
   void executeCommand(const char* cmd_line);
   char* getPrompt();
   void setPrompt(const char* newPrompt);
+  char* getLastPwd();
+  void setLastPwd(const char* newLastPwd);
   // TODO: add extra methods as needed
 };
 

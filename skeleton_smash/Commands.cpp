@@ -10,6 +10,7 @@
 using namespace std;
 
 const std::string WHITESPACE = " \n\r\t\f\v";
+const char* DEFAULT_PROMPT = "smash";
 
 #if 0
 #define FUNC_ENTRY()  \
@@ -37,6 +38,37 @@ string _rtrim(const std::string& s)
 string _trim(const std::string& s)
 {
   return _rtrim(_ltrim(s));
+}
+
+char ** breakCommandToParams(char* cmd_line, int* argsCount) {
+  char** args = new char*[MAX_ARGS];
+  for (int i = 0; i < MAX_ARGS; i++) {
+    args[i] = NULL;
+  }
+
+  int i = 0;
+  string cmd_s = _trim(cmd_line);
+  while(cmd_s != "")
+  {
+    cmd_s = _trim(cmd_s);
+  
+    if (cmd_s.find_first_of(WHITESPACE) == string::npos)
+    {
+      args[i] = new char[cmd_s.length()+1];
+      strcpy(args[i], cmd_s.c_str());
+      i++;
+      (*argsCount)++;
+      break;
+    }
+
+    string firstWord = cmd_s.substr(0, cmd_s.find_first_of(WHITESPACE));
+    args[i] = new char[firstWord.length()+1];
+    strcpy(args[i], firstWord.c_str());
+    cmd_s = cmd_s.substr(cmd_s.find_first_of(WHITESPACE)+1, string::npos);
+    i++;
+    (*argsCount)++;
+  }
+  return args;
 }
 
 int _parseCommandLine(const char* cmd_line, char** args) {
@@ -130,32 +162,55 @@ void SmallShell::executeCommand(const char *cmd_line) {
 
 
 void ChpromptCommand::execute() {
-  
+  SmallShell smash = SmallShell.getInstance();
+
+  char** args;
+  int argCount = _parseCommandLine(this->getCmdLine(), args);
+
+  if(argCount == 1) {
+    smash.setPrompt(DEFAULT_PROMPT);
+  }
+  else {
+    smash.setPrompt(args[1]);
+  }
 }
 
 void GetCurrDirCommand::execute() {
+  cout << getcwd(NULL, 0) << endl;
 }
 
 void ShowPidCommand::execute() {
+  cout << "smash pid is " << getpid() << endl;
 }
 
 void ChangeDirCommand::execute() {
-  
-}
+  char** args;
+  char* tmepdir;
+  SmallShell smash = SmallShell.getInstance();
+  int argCount = _parseCommandLine(this->getCmdLine(), args);
 
-char** breakCommandToParams(cosnt char* cmd_line)
-{
-  char** args = new char*[MAX_ARGS];
-  int i = 0;
-  while(cmd_s != "")
-  {
-    string  cmd_s = _trim(cmd_line);
-    string  firstWord = cmd_s.substr(0, cmd_s.find_first_of(" "));
-    args[i] = new char[firstWord.length()+1];
-    strcpy(args[i], firstWord.c_str());
-    cmd_s = cmd_s.substr(cmd_s.find_first_of(" ")+1);
-    i++;
+  if(argCount == 2) {
+    if(args[1] == "-") {
+      if(smash.lastPwd == NULL) {
+        cerr << "smash error: cd: OLDPWD not set" << endl;
+      }
+      else {
+        tmepdir = getcwd(NULL, 0);
+        chdir(smash.getLastPwd());
+        smash.setLastPwd(tmepdir);
+      }
+    }
+    else{
+      smash.setLastPwd(getcwd(NULL, 0));
+      chdir(args[1]);
+    }
   }
-
+  else if(argCount >= 2){
+    cerr << "smash error: cd: too many arguments" << endl;
+  }
+  else{
+    cerr << "smash error:> \“command-line\”" << endl;
+  }
 }
+
 
