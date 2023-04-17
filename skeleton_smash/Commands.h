@@ -2,42 +2,46 @@
 #define SMASH_COMMAND_H_
 
 #include <vector>
+#include <time.h>
+#include <string.h>
 
 #define COMMAND_ARGS_MAX_LENGTH (200)
 #define COMMAND_MAX_ARGS (20)
+
+using namespace std;
 
 class Command {
 // TODO: Add your data members
   const char* cmd_line;
   public:
   Command(const char* cmd_line) {this->cmd_line = cmd_line;}
-  virtual ~Command();
+  virtual ~Command() {}
   virtual void execute() = 0;
   //virtual void prepare();
   //virtual void cleanup();
   virtual bool isExternal() = 0;
-  const char* getCmdLine();
+  const char* getCmdLine() {return cmd_line;}
 };
 
 class BuiltInCommand : public Command {
  public:
-  BuiltInCommand(const char* cmd_line) : cmd_line(cmd_line) {}
+  BuiltInCommand(const char* cmd_line) : Command(cmd_line) {}
   virtual ~BuiltInCommand() {}
   bool isExternal() override { return false; }
 };
 
 class ExternalCommand : public Command {
  public:
-  ExternalCommand(const char* cmd_line) : cmd_line(cmd_line) {}
+  ExternalCommand(const char* cmd_line) : Command(cmd_line) {}
   virtual ~ExternalCommand() {}
-  void execute() override;
+  void execute() override {}
   bool isExternal() override { return true; }
 };
 
 class PipeCommand : public Command {
   // TODO: Add your data members
  public:
-  PipeCommand(const char* cmd_line) : cmd_line(cmd_line) {}
+  PipeCommand(const char* cmd_line) : Command(cmd_line) {}
   virtual ~PipeCommand() {}
   void execute() override;
 };
@@ -45,7 +49,7 @@ class PipeCommand : public Command {
 class RedirectionCommand : public Command {
  // TODO: Add your data members
   public:
-  explicit RedirectionCommand(const char* cmd_line) : cmd_line(cmd_line) {}
+  explicit RedirectionCommand(const char* cmd_line) : Command(cmd_line) {}
   virtual ~RedirectionCommand() {}
   void execute() override;
   //void prepare() override;
@@ -54,30 +58,29 @@ class RedirectionCommand : public Command {
 
 class ChpromptCommand : public BuiltInCommand {
   public:
-  ChpromptCommand(const char* cmd_line) : cmd_line(cmd_line) {}
+  ChpromptCommand(const char* cmd_line) : BuiltInCommand(cmd_line) {}
   virtual ~ChpromptCommand() {}
   void execute() override;
 };
 
 class ChangeDirCommand : public BuiltInCommand {
 // TODO: Add your data members 
-  char** plastPwd;
   public:
-  ChangeDirCommand(const char* cmd_line, char** plastPwd) : cmd_line(cmd_line) {this->plastPwd = plastPwd;}
+  ChangeDirCommand(const char* cmd_line) : BuiltInCommand(cmd_line) {}
   virtual ~ChangeDirCommand() {}
   void execute() override;
 };
 
 class GetCurrDirCommand : public BuiltInCommand {
  public:
-  GetCurrDirCommand(const char* cmd_line) : cmd_line(cmd_line) {}
+  GetCurrDirCommand(const char* cmd_line) : BuiltInCommand(cmd_line) {}
   virtual ~GetCurrDirCommand() {}
   void execute() override;
 };
 
 class ShowPidCommand : public BuiltInCommand {
  public:
-  ShowPidCommand(const char* cmd_line) : cmd_line(cmd_line) {}
+  ShowPidCommand(const char* cmd_line) : BuiltInCommand(cmd_line) {}
   virtual ~ShowPidCommand() {}
   void execute() override;
 };
@@ -86,22 +89,49 @@ class JobsList;
 class QuitCommand : public BuiltInCommand {
   JobsList* jobs;
 public:
-  QuitCommand(const char* cmd_line, JobsList* jobs) : cmd_line(cmd_line) {this->jobs = jobs;}
+  QuitCommand(const char* cmd_line, JobsList* jobs) : BuiltInCommand(cmd_line) {this->jobs = jobs;}
   virtual ~QuitCommand() {}
   void execute() override;
 };
 
 
 class JobsList {
- public:
+  public:
+  int maxJobId;
   class JobEntry {
    // TODO: Add your data members
+    int jobId;
+    bool isStopped;
+    Command* cmd;
+    time_t startTime;
+
+    public:
+    JobEntry(bool isStopped, Command* cmd, JobsList* jobList) : isStopped(isStopped), cmd(cmd) 
+    {
+      this->jobId = jobList->maxJobId + 1;
+      jobList->maxJobId = this->jobId;
+      startTime = time(NULL);
+    }
+
+    int getJobId() {return jobId;}
+    bool getIsStopped() {return isStopped;}
+    Command* getCmd() {return cmd;}
+    time_t getJobTime() {return startTime;}
+    
+    void setIsStopped(bool isStopped) {this->isStopped = isStopped;}
+    void setCmd(Command* cmd) {this->cmd = cmd;}
+    void setJobId(int jobId) {this->jobId = jobId;}
+
+    pid_t getJobPid() {}
+
   };
+  private:
+  vector<JobEntry*> jobs;
  // TODO: Add your data members
- public:
-  JobsList();
+  public:
+  JobsList() {}
   ~JobsList();
-  void addJob(Command* cmd, bool isStopped = false);
+  void addJob(Command* cmd, JobsList* jobList, bool isStopped = false);
   void printJobsList();
   void killAllJobs();
   void removeFinishedJobs();
@@ -114,6 +144,7 @@ class JobsList {
 
 class JobsCommand : public BuiltInCommand {
  // TODO: Add your data members
+  JobsList* jobs;
  public:
   JobsCommand(const char* cmd_line, JobsList* jobs);
   virtual ~JobsCommand() {}
@@ -182,7 +213,7 @@ class SmallShell {
   char* prompt;
   char* lastPwd;
   SmallShell(){this->prompt = "smash";
-               this->lastPwd = NULL}
+               this->lastPwd = NULL;}
  public:
   Command *CreateCommand(const char* cmd_line);
   SmallShell(SmallShell const&)      = delete; // disable copy ctor
@@ -195,10 +226,12 @@ class SmallShell {
   }
   ~SmallShell();
   void executeCommand(const char* cmd_line);
-  char* getPrompt();
-  void setPrompt(const char* newPrompt);
-  char* getLastPwd();
-  void setLastPwd(const char* newLastPwd);
+  char* getPrompt() {return this->prompt;}
+  void setPrompt(const char* newPrompt) {this->prompt = new char[strlen(newPrompt) + 1];
+                                         strcpy(this->prompt, newPrompt);}
+  char* getLastPwd() {return this->lastPwd;}
+  void setLastPwd(const char* newLastPwd) {this->lastPwd = new char[strlen(newLastPwd) + 1];
+                                           strcpy(this->lastPwd, newLastPwd);}
   // TODO: add extra methods as needed
 };
 
