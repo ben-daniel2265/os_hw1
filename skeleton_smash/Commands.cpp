@@ -40,37 +40,6 @@ string _trim(const std::string& s)
   return _rtrim(_ltrim(s));
 }
 
-char ** breakCommandToParams(char* cmd_line, int* argsCount) {
-  char** args = new char*[MAX_ARGS];
-  for (int i = 0; i < MAX_ARGS; i++) {
-    args[i] = NULL;
-  }
-
-  int i = 0;
-  string cmd_s = _trim(cmd_line);
-  while(cmd_s != "")
-  {
-    cmd_s = _trim(cmd_s);
-  
-    if (cmd_s.find_first_of(WHITESPACE) == string::npos)
-    {
-      args[i] = new char[cmd_s.length()+1];
-      strcpy(args[i], cmd_s.c_str());
-      i++;
-      (*argsCount)++;
-      break;
-    }
-
-    string firstWord = cmd_s.substr(0, cmd_s.find_first_of(WHITESPACE));
-    args[i] = new char[firstWord.length()+1];
-    strcpy(args[i], firstWord.c_str());
-    cmd_s = cmd_s.substr(cmd_s.find_first_of(WHITESPACE)+1, string::npos);
-    i++;
-    (*argsCount)++;
-  }
-  return args;
-}
-
 int _parseCommandLine(const char* cmd_line, char** args) {
   FUNC_ENTRY()
   int i = 0;
@@ -82,7 +51,6 @@ int _parseCommandLine(const char* cmd_line, char** args) {
     args[++i] = NULL;
   }
   return i;
-
   FUNC_EXIT()
 }
 
@@ -111,10 +79,6 @@ void _removeBackgroundSign(char* cmd_line) {
 
 // TODO: Add your implementation for classes in Commands.h 
 
-SmallShell::SmallShell() {
-// TODO: add your implementation
-}
-
 SmallShell::~SmallShell() {
 // TODO: add your implementation
 }
@@ -137,6 +101,9 @@ Command * SmallShell::CreateCommand(const char* cmd_line) {
   else if (firstWord.compare("chprompt") == 0) {
     return new ChpromptCommand(cmd_line);
   }
+  else if (firstWord.compare("cd") == 0) {
+    return new ChangeDirCommand(cmd_line);
+  }
   else {
     return new ExternalCommand(cmd_line);
   }
@@ -153,18 +120,16 @@ void SmallShell::executeCommand(const char *cmd_line) {
 
   Command* cmd = CreateCommand(cmd_line);
   if(cmd->isExternal()) {
-    continue;
   }
   else{
     cmd->execute();
   }
 }
 
-
 void ChpromptCommand::execute() {
-  SmallShell smash = SmallShell.getInstance();
+  SmallShell& smash = SmallShell::getInstance();
 
-  char** args;
+  char* args[COMMAND_MAX_ARGS];
   int argCount = _parseCommandLine(this->getCmdLine(), args);
 
   if(argCount == 1) {
@@ -184,15 +149,16 @@ void ShowPidCommand::execute() {
 }
 
 void ChangeDirCommand::execute() {
-  char** args;
+  char* args[COMMAND_MAX_ARGS];
   char* tmepdir;
-  SmallShell smash = SmallShell.getInstance();
+
+  SmallShell& smash = SmallShell::getInstance();
   int argCount = _parseCommandLine(this->getCmdLine(), args);
 
   if(argCount == 2) {
-    if(args[1] == "-") {
-      if(smash.lastPwd == NULL) {
-        cerr << "smash error: cd: OLDPWD not set" << endl;
+    if(strcmp(args[1], "-") == 0) {
+      if(smash.getLastPwd() == NULL) {
+        perror("smash error: cd: OLDPWD not set\n");
       }
       else {
         tmepdir = getcwd(NULL, 0);
@@ -206,11 +172,23 @@ void ChangeDirCommand::execute() {
     }
   }
   else if(argCount >= 2){
-    cerr << "smash error: cd: too many arguments" << endl;
+    perror("smash error: cd: too many arguments\n");
   }
   else{
-    cerr << "smash error:> \“command-line\”" << endl;
+    perror("smash error:> \“command-line\”\n");
   }
 }
 
+void JobsCommand::execute() {
+  this->jobs->printJobsList();
+}
 
+void JobsList::printJobsList() {
+  for (int i = 0; i < this->jobs.size(); i++) {
+    cout << '[' << jobs[i]->getJobId() << ']' << ' : ' << jobs[i]->getCmd() << ' ' << jobs[i]->getJobPid() << ' ' << difftime(time(NULL), jobs[i]->getJobTime());
+    if (jobs[i]->getIsStopped()) {
+      cout << " (stopped)";
+    }
+    cout << endl;
+  }
+}
