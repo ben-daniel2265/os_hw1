@@ -1,16 +1,18 @@
+#ifndef SMASH__COMMANDS_C_
+#define SMASH__COMMANDS_C_
 #include <unistd.h>
 #include <string.h>
 #include <iostream>
 #include <vector>
 #include <sstream>
-#include <sys/wait.h>
+//#include <sys/wait.h>
 #include <iomanip>
 #include "Commands.h"
 
 using namespace std;
 
 const std::string WHITESPACE = " \n\r\t\f\v";
-const char* DEFAULT_PROMPT = "smash";
+
 
 #if 0
 #define FUNC_ENTRY()  \
@@ -39,6 +41,7 @@ string _trim(const std::string& s)
 {
   return _rtrim(_ltrim(s));
 }
+
 
 int _parseCommandLine(const char* cmd_line, char** args) {
   FUNC_ENTRY()
@@ -133,7 +136,7 @@ void ChpromptCommand::execute() {
   int argCount = _parseCommandLine(this->getCmdLine(), args);
 
   if(argCount == 1) {
-    smash.setPrompt(DEFAULT_PROMPT);
+    smash.setPrompt("smash");
   }
   else {
     smash.setPrompt(args[1]);
@@ -175,7 +178,11 @@ void ChangeDirCommand::execute() {
     perror("smash error: cd: too many arguments\n");
   }
   else{
-    perror("smash error:> \“command-line\”\n");
+      string start = "smash error: ";
+      char* temp = new char[strlen(start.c_str()) + strlen(this->getCmdLine()) + 1];
+      strcpy(temp, start.c_str());
+      strcat(temp, this->getCmdLine());
+      perror(temp);
   }
 }
 
@@ -185,10 +192,11 @@ void JobsCommand::execute() {
 
 void JobsList::printJobsList() {
   for (int i = 0; i < this->jobs.size(); i++) {
-    cout << '[' << jobs[i]->getJobId() << ']' << ' : ' << jobs[i]->getCmd() << ' ' << jobs[i]->getJobPid() << ' ' << difftime(time(NULL), jobs[i]->getJobTime());
+    cout << '[' << jobs[i]->getJobId() << ']' << " : " << jobs[i]->getCmd() << ' ' << jobs[i]->getJobPid() << ' ' << difftime(time(NULL), jobs[i]->getJobTime());
     if (jobs[i]->getIsStopped()) {
       cout << " (stopped)";
     }
     cout << endl;
   }
 }
+#endif //SMASH_COMMAND_H_

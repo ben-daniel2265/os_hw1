@@ -9,7 +9,7 @@
 #define COMMAND_MAX_ARGS (20)
 
 using namespace std;
-
+//const char* DEFAULT_PROMPT = "smash";
 class Command {
 // TODO: Add your data members
   const char* cmd_line;
@@ -212,8 +212,10 @@ class SmallShell {
  private:
   char* prompt;
   char* lastPwd;
-  SmallShell(){this->prompt = "smash";
-               this->lastPwd = NULL;}
+  SmallShell(){
+                this->prompt = new char[6];
+                strcpy(this->prompt, "smash");
+                this->lastPwd = nullptr;}
  public:
   Command *CreateCommand(const char* cmd_line);
   SmallShell(SmallShell const&)      = delete; // disable copy ctor
@@ -227,11 +229,13 @@ class SmallShell {
   ~SmallShell();
   void executeCommand(const char* cmd_line);
   char* getPrompt() {return this->prompt;}
-  void setPrompt(const char* newPrompt) {this->prompt = new char[strlen(newPrompt) + 1];
-                                         strcpy(this->prompt, newPrompt);}
+  void setPrompt(const char* newPrompt) {   delete this->prompt;
+                                            this->prompt = new char[strlen(newPrompt) + 1];
+                                            strcpy(this->prompt, newPrompt);}
   char* getLastPwd() {return this->lastPwd;}
-  void setLastPwd(const char* newLastPwd) {this->lastPwd = new char[strlen(newLastPwd) + 1];
-                                           strcpy(this->lastPwd, newLastPwd);}
+  void setLastPwd(const char* newLastPwd) { delete this->lastPwd;
+                                            this->lastPwd = new char[strlen(newLastPwd) + 1];
+                                            strcpy(this->lastPwd, newLastPwd);}
   // TODO: add extra methods as needed
 };
 
