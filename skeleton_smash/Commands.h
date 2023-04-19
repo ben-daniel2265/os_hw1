@@ -34,7 +34,7 @@ class ExternalCommand : public Command {
  public:
   ExternalCommand(const char* cmd_line) : Command(cmd_line) {}
   virtual ~ExternalCommand() {}
-  void execute() override {}
+  void execute() override;
   bool isExternal() override { return true; }
 };
 
@@ -98,15 +98,16 @@ public:
 class JobsList {
   public:
   int maxJobId;
+
   class JobEntry {
-   // TODO: Add your data members
     int jobId;
     bool isStopped;
-    Command* cmd;
+    char* cmd;
     time_t startTime;
+    pid_t jobPid;
 
     public:
-    JobEntry(bool isStopped, Command* cmd, JobsList* jobList) : isStopped(isStopped), cmd(cmd) 
+    JobEntry(bool isStopped, char* cmd, JobsList* jobList, pid_t jobPid) : isStopped(isStopped), cmd(cmd), jobPid(jobPid) 
     {
       this->jobId = jobList->maxJobId + 1;
       jobList->maxJobId = this->jobId;
@@ -115,26 +116,28 @@ class JobsList {
 
     int getJobId() {return jobId;}
     bool getIsStopped() {return isStopped;}
-    Command* getCmd() {return cmd;}
+    char* getCmd() {return cmd;}
     time_t getJobTime() {return startTime;}
     
     void setIsStopped(bool isStopped) {this->isStopped = isStopped;}
-    void setCmd(Command* cmd) {this->cmd = cmd;}
+    void setCmd(char* cmd) {this->cmd = cmd;}
     void setJobId(int jobId) {this->jobId = jobId;}
 
-    pid_t getJobPid() {}
+    pid_t getJobPid() {return this->jobPid;}
 
   };
+
   private:
   vector<JobEntry*> jobs;
- // TODO: Add your data members
+
   public:
-  JobsList() {}
+  JobsList() {maxJobId = 0;}
   ~JobsList();
-  void addJob(Command* cmd, JobsList* jobList, bool isStopped = false);
+  void addJob(char* cmd, JobsList* jobList, pid_t jobPid, bool isStopped);
   void printJobsList();
   void killAllJobs();
   void removeFinishedJobs();
+
   JobEntry * getJobById(int jobId);
   void removeJobById(int jobId);
   JobEntry * getLastJob(int* lastJobId);
@@ -144,9 +147,8 @@ class JobsList {
 
 class JobsCommand : public BuiltInCommand {
  // TODO: Add your data members
-  JobsList* jobs;
  public:
-  JobsCommand(const char* cmd_line, JobsList* jobs);
+  JobsCommand(const char* cmd_line) : BuiltInCommand(cmd_line) {}
   virtual ~JobsCommand() {}
   void execute() override;
 };
@@ -212,10 +214,13 @@ class SmallShell {
  private:
   char* prompt;
   char* lastPwd;
+  JobsList* jobs;
+
   SmallShell(){
                 this->prompt = new char[6];
                 strcpy(this->prompt, "smash");
-                this->lastPwd = nullptr;}
+                this->lastPwd = nullptr;
+                this->jobs = new JobsList();}
  public:
   Command *CreateCommand(const char* cmd_line);
   SmallShell(SmallShell const&)      = delete; // disable copy ctor
@@ -236,6 +241,8 @@ class SmallShell {
   void setLastPwd(const char* newLastPwd) { delete this->lastPwd;
                                             this->lastPwd = new char[strlen(newLastPwd) + 1];
                                             strcpy(this->lastPwd, newLastPwd);}
+
+  JobsList* getJobsList() {return this->jobs;}
   // TODO: add extra methods as needed
 };
 

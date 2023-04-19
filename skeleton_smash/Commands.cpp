@@ -5,9 +5,10 @@
 #include <iostream>
 #include <vector>
 #include <sstream>
-//#include <sys/wait.h>
+#include <sys/wait.h>
 #include <iomanip>
 #include "Commands.h"
+
 
 using namespace std;
 
@@ -80,6 +81,10 @@ void _removeBackgroundSign(char* cmd_line) {
   cmd_line[str.find_last_not_of(WHITESPACE, idx) + 1] = 0;
 }
 
+bool _isComplexCommand(const char* cmd_line) {
+  const string str(cmd_line);
+  return ((str.find('*') != string::npos) || (str.find('?') != string::npos));
+}
 // TODO: Add your implementation for classes in Commands.h 
 
 SmallShell::~SmallShell() {
@@ -107,6 +112,9 @@ Command * SmallShell::CreateCommand(const char* cmd_line) {
   else if (firstWord.compare("cd") == 0) {
     return new ChangeDirCommand(cmd_line);
   }
+  else if(firstWord.compare("jobs") == 0) {
+    return new JobsCommand(cmd_line);
+  }
   else {
     return new ExternalCommand(cmd_line);
   }
@@ -120,12 +128,67 @@ void SmallShell::executeCommand(const char *cmd_line) {
   // Command* cmd = CreateCommand(cmd_line);
   // cmd->execute();
   // Please note that you must fork smash process for some commands (e.g., external commands....)
+  
+  this->jobs->removeFinishedJobs();
 
   Command* cmd = CreateCommand(cmd_line);
   if(cmd->isExternal()) {
+    cmd->execute();
   }
   else{
     cmd->execute();
+  }
+}
+
+void ExternalCommand::execute() {
+
+  char* args[COMMAND_MAX_ARGS];
+  char* cmd_lineCopy = (char*)malloc(strlen(this->getCmdLine())+1);
+  char* ogcmd = (char*)malloc(strlen(this->getCmdLine())+1);
+  strcpy(cmd_lineCopy, this->getCmdLine());
+  strcpy(ogcmd, this->getCmdLine());
+  bool isBackground = _isBackgroundComamnd(cmd_lineCopy);
+
+  if(isBackground)
+  {
+    _removeBackgroundSign(cmd_lineCopy);
+  }
+
+  int argCount = _parseCommandLine(cmd_lineCopy, args);
+
+  pid_t pid = fork();
+  if(pid == 0) {
+    bool isComplex = _isComplexCommand(cmd_lineCopy);
+    
+    if(isComplex) {
+      char* argsBash[4];
+      argsBash[0] = "bash";
+      argsBash[1] = "-c";
+      argsBash[2] = (char*)malloc(strlen(cmd_lineCopy)+1);
+      argsBash[3] = NULL;
+      strcpy(argsBash[2], cmd_lineCopy);
+
+      if(execvp("bash", argsBash) == -1)
+      {
+        perror("smash error: > ");
+      }
+    }
+    else{
+      if(execvp(args[0], args) == -1)
+      {
+        perror("smash error: > ");
+      }
+    }
+  }
+  else {
+    if(!isBackground)
+      {
+        waitpid(pid, NULL, 0);
+      }
+      else{
+        SmallShell& smash = SmallShell::getInstance();
+        smash.getJobsList()->addJob(ogcmd, smash.getJobsList(), pid, false);
+      }
   }
 }
 
@@ -187,16 +250,79 @@ void ChangeDirCommand::execute() {
 }
 
 void JobsCommand::execute() {
-  this->jobs->printJobsList();
+  SmallShell& smash = SmallShell::getInstance();
+  smash.getJobsList()->printJobsList();
+}
+
+void JobsList::removeFinishedJobs(){
+  for (int i = 0; i < jobs.size(); i++)
+  {
+    if (waitpid(jobs[i]->getJobPid(), NULL, WNOHANG) == jobs[i]->getJobPid())
+    {
+      jobs.erase(jobs.begin() + i);
+      i--;
+    }
+  }
+}
+
+JobsList::JobEntry * JobsList::getJobById(int jobId){
+  for (int i = 0; i < jobs.size(); i++)
+  {
+    if (jobs[i]->getJobId() == jobId)
+    {
+      return jobs[i];
+    }
+  }
+  return NULL;
+}
+
+void JobsList::removeJobById(int jobId){
+  for (int i = 0; i < jobs.size(); i++)
+  {
+    if (jobs[i]->getJobId() == jobId)
+    {
+      jobs.erase(jobs.begin() + i);
+      return;
+    }
+  }
+}
+
+JobsList::JobEntry * JobsList::getLastJob(int* lastJobId){
+  if (jobs.size() == 0)
+  {
+    return NULL;
+  }
+  *lastJobId = jobs[jobs.size() - 1]->getJobId();
+  return jobs[jobs.size() - 1];
+}
+
+JobsList::JobEntry * JobsList::getLastStoppedJob(int *jobId){
+  for (int i = jobs.size() - 1; i >= 0; i--)
+  {
+    if (jobs[i]->getIsStopped())
+    {
+      *jobId = jobs[i]->getJobId();
+      return jobs[i];
+    }
+  }
+  return NULL;
 }
 
 void JobsList::printJobsList() {
+  this->removeFinishedJobs();
+
   for (int i = 0; i < this->jobs.size(); i++) {
-    cout << '[' << jobs[i]->getJobId() << ']' << " : " << jobs[i]->getCmd() << ' ' << jobs[i]->getJobPid() << ' ' << difftime(time(NULL), jobs[i]->getJobTime());
+    cout << '[' << jobs[i]->getJobId() << ']' << " " << jobs[i]->getCmd() << " : " << jobs[i]->getJobPid() << ' ' << difftime(time(NULL), jobs[i]->getJobTime());
     if (jobs[i]->getIsStopped()) {
       cout << " (stopped)";
     }
     cout << endl;
   }
 }
+
+void JobsList::addJob(char* cmd, JobsList* jobList, pid_t jobPid, bool isStopped){
+  this->removeFinishedJobs();
+  jobs.push_back(new JobEntry(isStopped, cmd, jobList, jobPid));
+}
+
 #endif //SMASH_COMMAND_H_
