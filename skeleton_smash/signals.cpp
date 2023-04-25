@@ -23,7 +23,12 @@ void ctrlZHandler(int sig_num) {
 }
 
 void ctrlCHandler(int sig_num) {
-  // TODO: Add your implementation
+    cout << "smash: got ctrl-C" << endl;
+    SmallShell& smash = SmallShell::getInstance();
+    if (smash.getFgJob() == nullptr) {
+        return;
+    }
+    kill(smash.getFgJob()->getJobPid(), SIGINT);
 }
 
 void alarmHandler(int sig_num) {

@@ -115,10 +115,21 @@ Command * SmallShell::CreateCommand(const char* cmd_line) {
   else if(firstWord.compare("jobs") == 0) {
     return new JobsCommand(cmd_line);
   }
+  else if(firstWord.compare("fg") == 0) {
+      return new ForegroundCommand(cmd_line);
+  }
+  else if(firstWord.compare("bg") == 0) {
+      return new BackgroundCommand(cmd_line);
+  }
+  else if(firstWord.compare("quit") == 0) {
+      return new QuitCommand(cmd_line);
+  }
+  else if(firstWord.compare("kill") == 0) {
+      return new KillCommand(cmd_line);
+  }
   else {
     return new ExternalCommand(cmd_line);
   }
-  
   return nullptr;
 }
 
@@ -158,8 +169,10 @@ void ExternalCommand::execute() {
   int argCount = _parseCommandLine(cmd_lineCopy, args);
 
   pid_t pid = fork();
+
   if(pid == 0) {
-    bool isComplex = _isComplexCommand(cmd_lineCopy);
+      setpgrp();
+      bool isComplex = _isComplexCommand(cmd_lineCopy);
     
     if(isComplex) {
       char* argsBash[4];
@@ -257,7 +270,175 @@ void JobsCommand::execute() {
   smash.getJobsList()->printJobsList();
 }
 
+bool isNumber(const char* str)
+{
+    for (int i = 0; i < strlen(str); i++)
+    {
+        if (!isdigit(str[i]))
+        {
+            return false;
+        }
+    }
+    return true;
+}
+
+void ForegroundCommand::execute() {
+    SmallShell& smash = SmallShell::getInstance();
+    JobsList* jobs = smash.getJobsList();
+    char* args[COMMAND_MAX_ARGS];
+    int argCount = _parseCommandLine(this->getCmdLine(), args);
+    int LastJobId = 0;
+    if(argCount == 1)
+    {
+        JobsList::JobEntry* job = jobs->getLastJob(&LastJobId);
+        if(job == nullptr)
+        {
+            perror("smash error: fg: jobs list is empty\n");
+        }
+        else {
+            if (job->getIsStopped()) {
+                kill(job->getJobPid(), SIGCONT);
+                job->setIsStopped(false);
+            }
+            smash.setFgJob(job);
+            jobs->removeJobById(LastJobId);
+            waitpid(job->getJobPid(), NULL, WUNTRACED);
+            smash.setFgJob(nullptr);
+
+        }
+    }
+    else if(argCount > 2 || !isNumber(args[1]))
+    {
+        perror("smash error: fg: invalid arguments\n");
+    }
+    else
+    {
+        JobsList::JobEntry* job = jobs->getJobById(atoi(args[1]));
+        if(job == nullptr)
+        {
+            char* errormsg = new char[strlen("smash error: fg: job-id ") + strlen(args[1]) + strlen(" does not exist\n") + 1];
+            strcat(errormsg, "smash error: fg: job-id ");
+            strcat(errormsg, args[1]);
+            strcat(errormsg, " does not exist\n");
+            perror(errormsg);
+        }
+        else {
+            if (job->getIsStopped()) {
+                kill(job->getJobPid(), SIGCONT);
+                job->setIsStopped(false);
+            }
+            smash.setFgJob(job);
+            jobs->removeJobById(atoi(args[1]));
+            waitpid(job->getJobPid(), NULL, WUNTRACED);
+            smash.setFgJob(nullptr);
+        }
+    }
+}
+
+void BackgroundCommand::execute() {
+    SmallShell& smash = SmallShell::getInstance();
+    JobsList* jobs = smash.getJobsList();
+    char* args[COMMAND_MAX_ARGS];
+    int argCount = _parseCommandLine(this->getCmdLine(), args);
+    int lastStoppedJobId;
+    JobsList::JobEntry* job = jobs->getLastStoppedJob(&lastStoppedJobId);
+    if(argCount == 1)
+    {
+        if(job == nullptr)
+        {
+            perror("smash error: bg: there is no stopped jobs to resume\n");
+        }
+        else
+        {
+            kill(job->getJobPid(), SIGCONT);
+            job->setIsStopped(false);
+            cout << job->getCmd() << " : " << job->getJobPid() << endl;
+        }
+    }
+    else if (argCount > 2 || !isNumber(args[1])) {
+        perror("smash error: fg: invalid arguments\n");
+    }
+    else
+    {
+        job = jobs->getJobById(atoi(args[1]));
+        if(job == nullptr)
+        {
+            char* errormsg = new char[strlen("smash error: bg: job-id ") + strlen(args[1]) + strlen(" does not exist\n") + 1];
+            strcat(errormsg, "smash error: bg: job-id ");
+            strcat(errormsg, args[1]);
+            strcat(errormsg, " does not exist\n");
+            perror(errormsg);
+        }
+        else
+        {
+            if(job->getIsStopped())
+            {
+                kill(job->getJobPid(), SIGCONT);
+                job->setIsStopped(false);
+                cout << job->getCmd() << " : " << job->getJobPid() << endl;
+            }
+            else
+            {
+                char* errormsg = new char[strlen("smash error: bg: job-id ") + strlen(args[1]) + strlen(" is already running in the background\n") + 1];
+                strcat(errormsg, "smash error: bg: job-id ");
+                strcat(errormsg, args[1]);
+                strcat(errormsg, " is already running in the background\n");
+                perror(errormsg);
+            }
+        }
+    }
+}
+
+void QuitCommand::execute() {
+    SmallShell& smash = SmallShell::getInstance();
+    JobsList* jobs = smash.getJobsList();
+    char* args[COMMAND_MAX_ARGS];
+    int argCount = _parseCommandLine(this->getCmdLine(), args);
+
+    if(argCount == 2 && strcmp(args[1], "kill") == 0)
+    {
+        jobs->killAllJobs();
+    }
+    exit(0);
+
+}
+
+void KillCommand::execute() {
+    SmallShell& smash = SmallShell::getInstance();
+    JobsList* jobs = smash.getJobsList();
+    char* args[COMMAND_MAX_ARGS];
+    int argCount = _parseCommandLine(this->getCmdLine(), args);
+    JobsList::JobEntry* job = jobs->getJobById(atoi(args[2]));
+    string sigNum = ((string)args[1]).substr(1);
+    if(argCount != 3 || args[1][0] != '-' || !isNumber(sigNum.c_str()) || !isNumber(args[2]))
+    {
+        perror("smash error: kill: invalid arguments\n");
+    }
+    else if(job != nullptr)
+    {
+        if(kill(job->getJobPid(), atoi(sigNum.c_str())) != 0) {
+            perror("smash error: kill failed\n");
+        }
+        else {
+            if(atoi(sigNum.c_str()) == SIGSTOP)
+            {
+                cout << "bulbul "<< endl;
+                job->setIsStopped(true);
+            }
+
+        }
+        cout << "signal number " << sigNum << " was sent to pid " << job->getJobPid() << endl;
+    }
+    else
+    {
+        cout << "smash error: kill: job-id " << args[2] << " does not exist" << endl;
+    }
+
+}
+
+
 void JobsList::removeFinishedJobs(){
+    int currMaxJobId = 0;
   for (int i = 0; i < jobs.size(); i++)
   {
     if (waitpid(jobs[i]->getJobPid(), NULL, WNOHANG) == jobs[i]->getJobPid())
@@ -265,7 +446,15 @@ void JobsList::removeFinishedJobs(){
       jobs.erase(jobs.begin() + i);
       i--;
     }
+    else
+    {
+        if (jobs[i]->getJobId() > currMaxJobId)
+        {
+            currMaxJobId = jobs[i]->getJobId();
+        }
+    }
   }
+    this->maxJobId = currMaxJobId;
 }
 
 JobsList::JobEntry * JobsList::getJobById(int jobId){
@@ -280,6 +469,15 @@ JobsList::JobEntry * JobsList::getJobById(int jobId){
 }
 
 void JobsList::removeJobById(int jobId){
+    int currMaxJobId = 0;
+    for (int i = 0; i < jobs.size(); ++i) {
+        if(jobs[i]->getJobId() > currMaxJobId && jobs[i]->getJobId() != jobId)
+        {
+            currMaxJobId = jobs[i]->getJobId();
+        }
+    }
+    this->maxJobId = currMaxJobId;
+
   for (int i = 0; i < jobs.size(); i++)
   {
     if (jobs[i]->getJobId() == jobId)
@@ -288,6 +486,7 @@ void JobsList::removeJobById(int jobId){
       return;
     }
   }
+
 }
 
 JobsList::JobEntry * JobsList::getLastJob(int* lastJobId){
@@ -331,6 +530,14 @@ void JobsList::addJob(char* cmd, JobsList* jobList, pid_t jobPid, bool isStopped
 void JobsList::addJob(JobsList::JobEntry* job){
   this->removeFinishedJobs();
   jobs.push_back(job);
+}
+
+void JobsList::killAllJobs() {
+    cout << "smash: sending SIGKILL signal to " << jobs.size() << " jobs:" << endl;
+    for (int i = 0; i < jobs.size(); i++) {
+        cout << jobs[i]->getJobPid() << ": " << jobs[i]->getCmd() << endl;
+        kill(jobs[i]->getJobPid(), SIGKILL);
+    }
 }
 
 #endif //SMASH_COMMAND_H_
