@@ -142,6 +142,7 @@ void SmallShell::executeCommand(const char *cmd_line) {
 
 void ExternalCommand::execute() {
 
+  SmallShell& smash = SmallShell::getInstance();
   char* args[COMMAND_MAX_ARGS];
   char* cmd_lineCopy = (char*)malloc(strlen(this->getCmdLine())+1);
   char* ogcmd = (char*)malloc(strlen(this->getCmdLine())+1);
@@ -183,10 +184,12 @@ void ExternalCommand::execute() {
   else {
     if(!isBackground)
       {
-        waitpid(pid, NULL, 0);
+        JobsList::JobEntry* fgjob = new JobsList::JobEntry(false, ogcmd, smash.getJobsList(), pid);
+        smash.setFgJob(fgjob);
+        waitpid(pid, NULL, WUNTRACED);
+        smash.setFgJob(nullptr);
       }
       else{
-        SmallShell& smash = SmallShell::getInstance();
         smash.getJobsList()->addJob(ogcmd, smash.getJobsList(), pid, false);
       }
   }
@@ -323,6 +326,11 @@ void JobsList::printJobsList() {
 void JobsList::addJob(char* cmd, JobsList* jobList, pid_t jobPid, bool isStopped){
   this->removeFinishedJobs();
   jobs.push_back(new JobEntry(isStopped, cmd, jobList, jobPid));
+}
+
+void JobsList::addJob(JobsList::JobEntry* job){
+  this->removeFinishedJobs();
+  jobs.push_back(job);
 }
 
 #endif //SMASH_COMMAND_H_

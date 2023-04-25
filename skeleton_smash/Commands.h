@@ -122,6 +122,7 @@ class JobsList {
     void setIsStopped(bool isStopped) {this->isStopped = isStopped;}
     void setCmd(char* cmd) {this->cmd = cmd;}
     void setJobId(int jobId) {this->jobId = jobId;}
+    void setJobTime(time_t jobTime) {this->startTime = jobTime;}
 
     pid_t getJobPid() {return this->jobPid;}
 
@@ -134,6 +135,7 @@ class JobsList {
   JobsList() {maxJobId = 0;}
   ~JobsList();
   void addJob(char* cmd, JobsList* jobList, pid_t jobPid, bool isStopped);
+  void addJob(JobEntry* job);
   void printJobsList();
   void killAllJobs();
   void removeFinishedJobs();
@@ -215,12 +217,14 @@ class SmallShell {
   char* prompt;
   char* lastPwd;
   JobsList* jobs;
+  JobsList::JobEntry* fg_job;
 
   SmallShell(){
                 this->prompt = new char[6];
                 strcpy(this->prompt, "smash");
                 this->lastPwd = nullptr;
-                this->jobs = new JobsList();}
+                this->jobs = new JobsList();
+                this->fg_job = NULL;}
  public:
   Command *CreateCommand(const char* cmd_line);
   SmallShell(SmallShell const&)      = delete; // disable copy ctor
@@ -231,6 +235,7 @@ class SmallShell {
     // Instantiated on first use.
     return instance;
   }
+
   ~SmallShell();
   void executeCommand(const char* cmd_line);
   char* getPrompt() {return this->prompt;}
@@ -243,7 +248,9 @@ class SmallShell {
                                             strcpy(this->lastPwd, newLastPwd);}
 
   JobsList* getJobsList() {return this->jobs;}
-  // TODO: add extra methods as needed
+
+  JobsList::JobEntry* getFgJob() {return this->fg_job;}
+  void setFgJob(JobsList::JobEntry* job) {this->fg_job = job;}
 };
 
 #endif //SMASH_COMMAND_H_
