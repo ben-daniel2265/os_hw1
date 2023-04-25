@@ -541,3 +541,5 @@ void JobsList::killAllJobs() {
 }
 
 #endif //SMASH_COMMAND_H_
+
+// -------------------------------
