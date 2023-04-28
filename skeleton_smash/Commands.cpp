@@ -184,13 +184,13 @@ void ExternalCommand::execute() {
 
       if(execvp("bash", argsBash) == -1)
       {
-        perror("smash error: > ");
+        cerr << "smash error: > " << endl;
       }
     }
     else{
       if(execvp(args[0], args) == -1)
       {
-        perror("smash error: > ");
+          cerr << "smash error: > " << endl;
       }
     }
   }
@@ -240,7 +240,7 @@ void ChangeDirCommand::execute() {
   if(argCount == 2) {
     if(strcmp(args[1], "-") == 0) {
       if(smash.getLastPwd() == NULL) {
-        perror("smash error: cd: OLDPWD not set\n");
+        cerr<<"smash error: cd: OLDPWD not set\n";
       }
       else {
         tmepdir = getcwd(NULL, 0);
@@ -254,14 +254,14 @@ void ChangeDirCommand::execute() {
     }
   }
   else if(argCount >= 2){
-    perror("smash error: cd: too many arguments\n");
+    cerr << "smash error: cd: too many arguments" << endl;
   }
   else{
       string start = "smash error: ";
       char* temp = new char[strlen(start.c_str()) + strlen(this->getCmdLine()) + 1];
       strcpy(temp, start.c_str());
       strcat(temp, this->getCmdLine());
-      perror(temp);
+      cerr << temp << endl;
   }
 }
 
@@ -293,7 +293,7 @@ void ForegroundCommand::execute() {
         JobsList::JobEntry* job = jobs->getLastJob(&LastJobId);
         if(job == nullptr)
         {
-            perror("smash error: fg: jobs list is empty\n");
+            cerr << "smash error: fg: jobs list is empty" << endl;
         }
         else {
             if (job->getIsStopped()) {
@@ -309,18 +309,14 @@ void ForegroundCommand::execute() {
     }
     else if(argCount > 2 || !isNumber(args[1]))
     {
-        perror("smash error: fg: invalid arguments\n");
+        cerr << "smash error: fg: invalid arguments" << endl;
     }
     else
     {
         JobsList::JobEntry* job = jobs->getJobById(atoi(args[1]));
         if(job == nullptr)
         {
-            char* errormsg = new char[strlen("smash error: fg: job-id ") + strlen(args[1]) + strlen(" does not exist\n") + 1];
-            strcat(errormsg, "smash error: fg: job-id ");
-            strcat(errormsg, args[1]);
-            strcat(errormsg, " does not exist\n");
-            perror(errormsg);
+            cerr << "smash error: fg: job-id " << args[1] << " does not exist\n" <<endl;
         }
         else {
             if (job->getIsStopped()) {
@@ -346,7 +342,7 @@ void BackgroundCommand::execute() {
     {
         if(job == nullptr)
         {
-            perror("smash error: bg: there is no stopped jobs to resume\n");
+            cerr << "smash error: bg: there is no stopped jobs to resume" << endl;
         }
         else
         {
@@ -356,18 +352,14 @@ void BackgroundCommand::execute() {
         }
     }
     else if (argCount > 2 || !isNumber(args[1])) {
-        perror("smash error: fg: invalid arguments\n");
+        cerr << "smash error: bg: invalid arguments" << endl;
     }
     else
     {
         job = jobs->getJobById(atoi(args[1]));
         if(job == nullptr)
         {
-            char* errormsg = new char[strlen("smash error: bg: job-id ") + strlen(args[1]) + strlen(" does not exist\n") + 1];
-            strcat(errormsg, "smash error: bg: job-id ");
-            strcat(errormsg, args[1]);
-            strcat(errormsg, " does not exist\n");
-            perror(errormsg);
+            cerr << "smash error: bg: job-id " << args[1] << " does not exist\n" << endl;
         }
         else
         {
@@ -379,11 +371,7 @@ void BackgroundCommand::execute() {
             }
             else
             {
-                char* errormsg = new char[strlen("smash error: bg: job-id ") + strlen(args[1]) + strlen(" is already running in the background\n") + 1];
-                strcat(errormsg, "smash error: bg: job-id ");
-                strcat(errormsg, args[1]);
-                strcat(errormsg, " is already running in the background\n");
-                perror(errormsg);
+                cerr << "smash error: bg: job-id " << args[1] << " is already running in the background\n" <<endl;
             }
         }
     }
@@ -412,17 +400,16 @@ void KillCommand::execute() {
     string sigNum = ((string)args[1]).substr(1);
     if(argCount != 3 || args[1][0] != '-' || !isNumber(sigNum.c_str()) || !isNumber(args[2]))
     {
-        perror("smash error: kill: invalid arguments\n");
+       cerr << "smash error: kill: invalid arguments" << endl;
     }
     else if(job != nullptr)
     {
         if(kill(job->getJobPid(), atoi(sigNum.c_str())) != 0) {
-            perror("smash error: kill failed\n");
+            cerr << "smash error: kill failed\n" << endl;
         }
         else {
             if(atoi(sigNum.c_str()) == SIGSTOP)
             {
-                cout << "bulbul "<< endl;
                 job->setIsStopped(true);
             }
 
