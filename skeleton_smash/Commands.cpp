@@ -85,6 +85,17 @@ bool _isComplexCommand(const char* cmd_line) {
   const string str(cmd_line);
   return ((str.find('*') != string::npos) || (str.find('?') != string::npos));
 }
+
+bool _isPipeCommand(const char* cmd_line) {
+  const string str(cmd_line);
+  return str.find('|') != string::npos;
+}
+
+bool _isRedirectionCommand(const char* cmd_line) {
+  const string str(cmd_line);
+  return ((str.find('>') != string::npos));
+}
+
 // TODO: Add your implementation for classes in Commands.h 
 
 SmallShell::~SmallShell() {
@@ -184,13 +195,15 @@ void ExternalCommand::execute() {
 
       if(execvp("bash", argsBash) == -1)
       {
-        cerr << "smash error: > " << endl;
+        cerr << "smash error: > \"" << cmd_lineCopy << "\"" << endl;
+        exit(0);
       }
     }
     else{
       if(execvp(args[0], args) == -1)
       {
-          cerr << "smash error: > " << endl;
+          cerr << "smash error: > \"" << cmd_lineCopy << "\"" << endl;
+          exit(0);
       }
     }
   }
@@ -423,9 +436,23 @@ void KillCommand::execute() {
 
 }
 
+void PipeCommand::execute() {
+  SmallShell& smash = SmallShell::getInstance();
+  char* args[COMMAND_MAX_ARGS];
+  int argCount = _parseCommandLine(this->getCmdLine(), args);
+
+  int fd[2];
+  pipe(fd);
+
+  
+}
+
+void RedirectionCommand::execute() {
+
+}
 
 void JobsList::removeFinishedJobs(){
-    int currMaxJobId = 0;
+  int currMaxJobId = 0;
   for (int i = 0; i < jobs.size(); i++)
   {
     if (waitpid(jobs[i]->getJobPid(), NULL, WNOHANG) == jobs[i]->getJobPid())
@@ -526,6 +553,7 @@ void JobsList::killAllJobs() {
         kill(jobs[i]->getJobPid(), SIGKILL);
     }
 }
+
 
 #endif //SMASH_COMMAND_H_
 

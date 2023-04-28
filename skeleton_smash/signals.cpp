@@ -13,7 +13,7 @@ void ctrlZHandler(int sig_num) {
     return;
   }
   
-  kill(smash.getFgJob()->getJobPid(), SIGTSTP);
+  kill(smash.getFgJob()->getJobPid(), SIGSTOP);
   smash.getFgJob()->setIsStopped(true);
   smash.getFgJob()->setJobTime(time(NULL));
   smash.getJobsList()->addJob(smash.getFgJob());
