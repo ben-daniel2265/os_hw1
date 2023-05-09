@@ -28,7 +28,15 @@ void ctrlCHandler(int sig_num) {
     if (smash.getFgJob() == nullptr) {
         return;
     }
-    kill(smash.getFgJob()->getJobPid(), SIGINT);
+    if(kill(smash.getFgJob()->getJobPid(), SIGKILL) == -1) {
+        perror("smash error: kill failed");
+    }
+    else {
+        smash.getJobsList()->removeJobById(smash.getFgJob()->getJobId());
+        cout << "smash: process " << smash.getFgJob()->getJobPid() << " was killed" << endl;
+        smash.setFgJob(nullptr);
+    }
+
 }
 
 void alarmHandler(int sig_num) {
