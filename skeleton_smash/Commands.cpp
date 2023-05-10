@@ -1,6 +1,6 @@
 #ifndef SMASH__COMMANDS_C_
 #define SMASH__COMMANDS_C_
-#include <unistd.h>
+
 #include <string.h>
 #include <iostream>
 #include <vector>
@@ -10,6 +10,7 @@
 #include "Commands.h"
 #include <fcntl.h>
 #include <sys/stat.h>
+#include <unistd.h>
 
 
 using namespace std;
@@ -59,14 +60,15 @@ int _parseCommandLine(const char* cmd_line, char** args) {
   FUNC_EXIT()
 }
 
-void _parseTimeout(const char* cmd_line, char* command, char* time) {
+void _parseTimeout(const char* cmd_line, char** command, char* time) {
   FUNC_ENTRY()
   
   size_t timePlace = string(cmd_line).find(' ', string(cmd_line).find(time)+1);
 
-  command = (char*)malloc(strlen(cmd_line)-timePlace+1);
-  memset(command, 0, strlen(cmd_line)-timePlace+1);
-  strcpy(command, cmd_line+timePlace+1);
+  *command = (char*)malloc(strlen(cmd_line)-timePlace+1);
+  memset(*command, 0, strlen(cmd_line)-timePlace+1);
+  strcpy(*command, cmd_line+timePlace+1);
+
 
   FUNC_EXIT()
 }
@@ -153,7 +155,7 @@ int _isRedirectionCommand(const char* cmd_line) {
 
 bool isNumber(const char* str)
 {
-    for (int i = 0; i < strlen(str); i++)
+    for (unsigned int i = 0; i < strlen(str); i++)
     {
         if (!(isdigit(str[i]) || (str[i] == '-' && i == 0)))
         {
@@ -224,6 +226,9 @@ Command * SmallShell::CreateCommand(const char* cmd_line) {
   else if(firstWord.compare("chmod") == 0) {
       return new ChmodCommand(cmd_line);
   }
+  else if(firstWord.compare("timeout") == 0) {
+      return new TimeoutCommand(cmd_line);
+  }
   else {
     return new ExternalCommand(cmd_line);
   }
@@ -262,7 +267,7 @@ void ExternalCommand::execute() {
     _removeBackgroundSign(cmd_lineCopy);
   }
 
-  int argCount = _parseCommandLine(cmd_lineCopy, args);
+  _parseCommandLine(cmd_lineCopy, args);
 
   pid_t pid = fork();
 
@@ -293,19 +298,32 @@ void ExternalCommand::execute() {
     }
   }
   else if (pid > 0){
-    if(this->getEndTime() != NULL){
-      smash.addTimedJob(new SmallShell::TimedCommand(new ExternalCommand(this->getCmdLine(), this->getEndTime()), pid));
+    if(this->getEndTime() != 0){
+      smash.addTimedCommand(new ExternalCommand(this->getCmdLine(),this->getTimedCommandLine(), this->getEndTime()), pid);
       smash.resetAlarm();
     }
     if(!isBackground)
       {
-        JobsList::JobEntry* fgjob = new JobsList::JobEntry(false, ogcmd, smash.getJobsList(), pid);
+        JobsList::JobEntry* fgjob;
+        if(this->getTimedCommandLine() != NULL)
+        {
+          fgjob = new JobsList::JobEntry(false, this->getTimedCommandLine(), smash.getJobsList(), pid);
+        }
+        else {
+          fgjob = new JobsList::JobEntry(false, ogcmd, smash.getJobsList(), pid);
+        }
         smash.setFgJob(fgjob);
         waitpid(pid, NULL, WUNTRACED);
         smash.setFgJob(nullptr);
       }
       else{
-        smash.getJobsList()->addJob(ogcmd, smash.getJobsList(), pid, false);
+        if(this->getTimedCommandLine() != NULL)
+        {
+          smash.getJobsList()->addJob(this->getTimedCommandLine(), smash.getJobsList(), pid, false);
+        }
+        else {
+          smash.getJobsList()->addJob(ogcmd, smash.getJobsList(), pid, false);
+        }
       }
   }
   else {
@@ -408,8 +426,6 @@ void SetcoreCommand::execute() {
 }
 
 void GetFileTypeCommand::execute() {
-  SmallShell& smash = SmallShell::getInstance();
-
   char* args[COMMAND_MAX_ARGS];
   int argCount = _parseCommandLine(this->getCmdLine(), args);
 
@@ -444,8 +460,6 @@ void GetFileTypeCommand::execute() {
 }
 
 void ChmodCommand::execute() {
-  SmallShell& smash = SmallShell::getInstance();
-
   char* args[COMMAND_MAX_ARGS];
   int argCount = _parseCommandLine(this->getCmdLine(), args);
 
@@ -567,12 +581,14 @@ void BackgroundCommand::execute() {
 
 void QuitCommand::execute() {
     SmallShell& smash = SmallShell::getInstance();
+    smash.getJobsList()->removeFinishedJobs();
     JobsList* jobs = smash.getJobsList();
     char* args[COMMAND_MAX_ARGS];
     int argCount = _parseCommandLine(this->getCmdLine(), args);
 
     if(argCount == 2 && strcmp(args[1], "kill") == 0)
     {
+        smash.getJobsList()->removeFinishedJobs();
         jobs->killAllJobs();
     }
     exit(0);
@@ -632,15 +648,14 @@ void PipeCommand::execute() {
     int pipeType = _isPipeCommand(this->getCmdLine());
     _splitPipeCommand(this->getCmdLine(), &cmd1, &cmd2);
     char* args1[COMMAND_MAX_ARGS];
-    int argCount1 = _parseCommandLine(cmd1, args1);
+    _parseCommandLine(cmd1, args1);
     char* args2[COMMAND_MAX_ARGS];
 
-    int argCount;
     if(pipeType == 2){
-      argCount = _parseCommandLine(cmd2+1, args2);
+      _parseCommandLine(cmd2+1, args2);
     }
     else{
-      argCount = _parseCommandLine(cmd2, args2);
+      _parseCommandLine(cmd2, args2);
     }
 
     int pipefd[2];
@@ -739,7 +754,7 @@ void RedirectionCommand::execute() {
 
 void JobsList::removeFinishedJobs(){
   int currMaxJobId = 0;
-  for (int i = 0; i < jobs.size(); i++)
+  for (unsigned int i = 0; i < jobs.size(); i++)
   {
     if (waitpid(jobs[i]->getJobPid(), NULL, WNOHANG) == jobs[i]->getJobPid())
     {
@@ -758,7 +773,7 @@ void JobsList::removeFinishedJobs(){
 }
 
 JobsList::JobEntry * JobsList::getJobById(int jobId){
-  for (int i = 0; i < jobs.size(); i++)
+  for (unsigned int i = 0; i < jobs.size(); i++)
   {
     if (jobs[i]->getJobId() == jobId)
     {
@@ -770,7 +785,7 @@ JobsList::JobEntry * JobsList::getJobById(int jobId){
 
 void JobsList::removeJobById(int jobId){
     int currMaxJobId = 0;
-    for (int i = 0; i < jobs.size(); ++i) {
+    for (unsigned int i = 0; i < jobs.size(); ++i) {
         if(jobs[i]->getJobId() > currMaxJobId && jobs[i]->getJobId() != jobId)
         {
             currMaxJobId = jobs[i]->getJobId();
@@ -778,7 +793,7 @@ void JobsList::removeJobById(int jobId){
     }
     this->maxJobId = currMaxJobId;
 
-  for (int i = 0; i < jobs.size(); i++)
+  for (unsigned int i = 0; i < jobs.size(); i++)
   {
     if (jobs[i]->getJobId() == jobId)
     {
@@ -813,7 +828,7 @@ JobsList::JobEntry * JobsList::getLastStoppedJob(int *jobId){
 void JobsList::printJobsList() {
   this->removeFinishedJobs();
 
-  for (int i = 0; i < this->jobs.size(); i++) {
+  for (unsigned int i = 0; i < this->jobs.size(); i++) {
     cout << '[' << jobs[i]->getJobId() << ']' 
          << " " << jobs[i]->getCmd() << " : " 
          << jobs[i]->getJobPid() << ' ' 
@@ -834,7 +849,7 @@ void JobsList::addJob(char* cmd, JobsList* jobList, pid_t jobPid, bool isStopped
 void JobsList::addJob(JobsList::JobEntry* job){
   this->removeFinishedJobs();
   // insersts the job in the right place
-  for (int i = 0; i < jobs.size(); i++)
+  for (unsigned int i = 0; i < jobs.size(); i++)
   {
     if (jobs[i]->getJobId() > job->getJobId())
     {
@@ -847,7 +862,7 @@ void JobsList::addJob(JobsList::JobEntry* job){
 
 void JobsList::killAllJobs() {
     cout << "smash: sending SIGKILL signal to " << jobs.size() << " jobs:" << endl;
-    for (int i = 0; i < jobs.size(); i++) {
+    for (unsigned int i = 0; i < jobs.size(); i++) {
         cout << jobs[i]->getJobPid() << ": " << jobs[i]->getCmd() << endl;
         kill(jobs[i]->getJobPid(), SIGKILL);
     }
@@ -862,7 +877,7 @@ void TimeoutCommand::execute() {
 
     if (argCount < 3)
     {
-      cout << "smash error: timeout: invalid arguments" << endl;
+      cerr << "smash error: timeout: invalid arguments" << endl;
       return;
     }
 
@@ -871,9 +886,9 @@ void TimeoutCommand::execute() {
 
     int duration = atoi(args[1]);
 
-    if(duration <= 0)
+    if(duration < 0)
     {
-      cout << "smash error: timeout: invalid arguments" << endl;
+      cerr << "smash error: timeout: invalid arguments" << endl;
       return;
     }
 
@@ -881,10 +896,15 @@ void TimeoutCommand::execute() {
 
     Command* cmd = smash.CreateCommand(command);
 
+    char* timedCmd = new char[strlen(this->getCmdLine()) + 1];
+    strcpy(timedCmd, this->getCmdLine());
+
+    cmd->setTimedCommandLine(timedCmd);
+
     cmd->setEndTime(endTime);
 
     if(!cmd->isExternal()) {
-      smash.addTimedJob(new SmallShell::TimedCommand(cmd, -1));
+      smash.addTimedCommand(cmd, -1);
       smash.resetAlarm();
     }
 

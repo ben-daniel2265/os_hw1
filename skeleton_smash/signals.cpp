@@ -2,6 +2,7 @@
 #include <signal.h>
 #include "signals.h"
 #include "Commands.h"
+#include <sys/wait.h>
 
 using namespace std;
 
@@ -40,6 +41,22 @@ void ctrlCHandler(int sig_num) {
 }
 
 void alarmHandler(int sig_num) {
-  // TODO: Add your implementation
+  cout << "smash: got an alarm" << endl;
+
+  SmallShell::TimedCommand* timedCmd = SmallShell::getInstance().popHeadTimedCommand();
+
+  SmallShell::getInstance().getJobsList()->removeFinishedJobs();
+  if(timedCmd->pid != -1) {
+    if(waitpid(timedCmd->pid, NULL, WNOHANG) == 0){
+      if(kill(timedCmd->pid, SIGKILL) == -1) {
+        perror("smash error: kill failed");
+      }
+      else {
+        cout << "smash: " << timedCmd->cmd->getTimedCommandLine() << " timed out!" << endl;
+      }
+    }
+  }
+  
+  SmallShell::getInstance().resetAlarm();
 }
 
