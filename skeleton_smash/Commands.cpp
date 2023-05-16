@@ -272,8 +272,8 @@ void ExternalCommand::execute() {
   pid_t pid = fork();
 
   if(pid == 0) {
-      setpgrp();
-      bool isComplex = _isComplexCommand(cmd_lineCopy);
+    setpgrp();
+    bool isComplex = _isComplexCommand(cmd_lineCopy);
     
     if(isComplex) {
       char* argsBash[4];
@@ -508,12 +508,19 @@ void ForegroundCommand::execute() {
 
         }
     }
-    else if(argCount > 2 || !isNumber(args[1]))
-    {
-        cerr << "smash error: fg: invalid arguments" << endl;
-    }
     else
     {
+        if(argCount > 2)
+        {
+            JobsList::JobEntry* job = jobs->getJobById(atoi(args[1]));
+            if(job == nullptr)
+            {
+                cerr << "smash error: fg: job-id " << args[1] << " does not exist" <<endl;
+            }
+            else if(isNumber(args[1])) cerr << "smash error: fg: invalid arguments" << endl;
+            else cerr << "smash error: fg: job-id " << args[1] << " does not exist" <<endl;
+            return;
+        }
         JobsList::JobEntry* job = jobs->getJobById(atoi(args[1]));
         if(job == nullptr)
         {
