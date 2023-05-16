@@ -4,6 +4,7 @@
 #include <vector>
 #include <time.h>
 #include <string.h>
+#include <unistd.h>
 
 #define COMMAND_ARGS_MAX_LENGTH (200)
 #define COMMAND_MAX_ARGS (20)
@@ -13,10 +14,12 @@ using namespace std;
 class Command {
 // TODO: Add your data members
   const char* cmd_line;
+  char* timedCommandLine;
   time_t endTime;
   public:
-  Command(const char* cmd_line, time_t endTime) {this->cmd_line = cmd_line;
-                                                this->endTime = endTime;}
+  Command(const char* cmd_line, char* timedCommandLine, time_t endTime) {this->cmd_line = cmd_line;
+                                                                       this->endTime = endTime;
+                                                                       this->timedCommandLine = timedCommandLine;}
   virtual ~Command() {}
   virtual void execute() = 0;
   //virtual void prepare();
@@ -25,18 +28,22 @@ class Command {
   const char* getCmdLine() {return cmd_line;}
   void setEndTime(time_t endTime) {this->endTime = endTime;}
   time_t getEndTime() {return endTime;}
+  char* getTimedCommandLine() {return timedCommandLine;}
+  void setTimedCommandLine(char* timedCommandLine) {this->timedCommandLine = timedCommandLine;}
 };
 
 class BuiltInCommand : public Command {
  public:
-  BuiltInCommand(const char* cmd_line, time_t endTime) : Command(cmd_line, endTime) {}
+  BuiltInCommand(const char* cmd_line, char* timedCommandLine = nullptr, time_t endTime = 0) 
+                                                      : Command(cmd_line, timedCommandLine,endTime) {}
   virtual ~BuiltInCommand() {}
   bool isExternal() override { return false; }
 };
 
 class ExternalCommand : public Command {
  public:
-  ExternalCommand(const char* cmd_line, time_t endTime = NULL) : Command(cmd_line, endTime) {}
+  ExternalCommand(const char* cmd_line, char* timedCommandLine = nullptr, time_t endTime = 0) 
+                                                      : Command(cmd_line, timedCommandLine,endTime) {}
   virtual ~ExternalCommand() {}
   void execute() override;
   bool isExternal() override { return true; }
@@ -45,7 +52,8 @@ class ExternalCommand : public Command {
 class PipeCommand : public Command {
   // TODO: Add your data members
  public:
-  PipeCommand(const char* cmd_line, time_t endTime = NULL) : Command(cmd_line, endTime) {}
+  PipeCommand(const char* cmd_line, char* timedCommandLine = nullptr, time_t endTime = 0) 
+                                                      : Command(cmd_line, timedCommandLine,endTime) {}
   virtual ~PipeCommand() {}
   void execute() override;
   bool isExternal() override { return false; }
@@ -54,7 +62,8 @@ class PipeCommand : public Command {
 class RedirectionCommand : public Command {
  // TODO: Add your data members
   public:
-  explicit RedirectionCommand(const char* cmd_line, time_t endTime = NULL) : Command(cmd_line, endTime) {}
+  explicit RedirectionCommand(const char* cmd_line, char* timedCommandLine = nullptr, time_t endTime = 0) 
+                                                      : Command(cmd_line, timedCommandLine,endTime) {}
   virtual ~RedirectionCommand() {}
   void execute() override;
   bool isExternal() override { return false; }
@@ -64,7 +73,8 @@ class RedirectionCommand : public Command {
 
 class ChpromptCommand : public BuiltInCommand {
   public:
-  ChpromptCommand(const char* cmd_line, time_t endTime = NULL) : BuiltInCommand(cmd_line, endTime) {}
+  ChpromptCommand(const char* cmd_line, char* timedCommandLine = nullptr, time_t endTime = 0) 
+                                                      : BuiltInCommand(cmd_line, timedCommandLine,endTime) {}
   virtual ~ChpromptCommand() {}
   void execute() override;
 };
@@ -72,21 +82,24 @@ class ChpromptCommand : public BuiltInCommand {
 class ChangeDirCommand : public BuiltInCommand {
 // TODO: Add your data members 
   public:
-  ChangeDirCommand(const char* cmd_line, time_t endTime = NULL) : BuiltInCommand(cmd_line, endTime) {}
+  ChangeDirCommand(const char* cmd_line, char* timedCommandLine = nullptr, time_t endTime = 0) 
+                                                      : BuiltInCommand(cmd_line, timedCommandLine,endTime) {}
   virtual ~ChangeDirCommand() {}
   void execute() override;
 };
 
 class GetCurrDirCommand : public BuiltInCommand {
  public:
-  GetCurrDirCommand(const char* cmd_line, time_t endTime = NULL) : BuiltInCommand(cmd_line, endTime) {}
+  GetCurrDirCommand(const char* cmd_line, char* timedCommandLine = nullptr, time_t endTime = 0) 
+                                                      : BuiltInCommand(cmd_line, timedCommandLine,endTime) {}
   virtual ~GetCurrDirCommand() {}
   void execute() override;
 };
 
 class ShowPidCommand : public BuiltInCommand {
  public:
-  ShowPidCommand(const char* cmd_line, time_t endTime = NULL) : BuiltInCommand(cmd_line, endTime) {}
+  ShowPidCommand(const char* cmd_line, char* timedCommandLine = nullptr, time_t endTime = 0) 
+                                                      : BuiltInCommand(cmd_line, timedCommandLine,endTime) {}
   virtual ~ShowPidCommand() {}
   void execute() override;
 };
@@ -96,7 +109,8 @@ class JobsList;
 class QuitCommand : public BuiltInCommand {
   JobsList* jobs;
 public:
-  QuitCommand(const char* cmd_line, time_t endTime = NULL) : BuiltInCommand(cmd_line, endTime) {}
+  QuitCommand(const char* cmd_line, char* timedCommandLine = nullptr, time_t endTime = 0) 
+                                                      : BuiltInCommand(cmd_line, timedCommandLine,endTime) {}
   virtual ~QuitCommand() {}
   void execute() override;
 };
@@ -157,7 +171,8 @@ class JobsList {
 class JobsCommand : public BuiltInCommand {
  // TODO: Add your data members
  public:
-  JobsCommand(const char* cmd_line, time_t endTime = NULL) : BuiltInCommand(cmd_line, endTime) {}
+  JobsCommand(const char* cmd_line, char* timedCommandLine = nullptr, time_t endTime = 0) 
+                                                      : BuiltInCommand(cmd_line, timedCommandLine,endTime) {}
   virtual ~JobsCommand() {}
   void execute() override;
 };
@@ -165,7 +180,8 @@ class JobsCommand : public BuiltInCommand {
 class ForegroundCommand : public BuiltInCommand {
  // TODO: Add your data members
  public:
-  ForegroundCommand(const char* cmd_line, time_t endTime = NULL) : BuiltInCommand(cmd_line, endTime) {}
+  ForegroundCommand(const char* cmd_line, char* timedCommandLine = nullptr, time_t endTime = 0) 
+                                                      : BuiltInCommand(cmd_line, timedCommandLine,endTime) {}
   virtual ~ForegroundCommand() {}
   void execute() override;
 };
@@ -173,7 +189,8 @@ class ForegroundCommand : public BuiltInCommand {
 class BackgroundCommand : public BuiltInCommand {
  // TODO: Add your data members
  public:
-  BackgroundCommand(const char* cmd_line, time_t endTime = NULL) : BuiltInCommand(cmd_line, endTime) {}
+  BackgroundCommand(const char* cmd_line, char* timedCommandLine = nullptr, time_t endTime = 0) 
+                                                      : BuiltInCommand(cmd_line, timedCommandLine,endTime) {}
   virtual ~BackgroundCommand() {}
   void execute() override;
 };
@@ -182,15 +199,18 @@ class TimeoutCommand : public BuiltInCommand {
 /* Bonus */
 // TODO: Add your data members
  public:
-  explicit TimeoutCommand(const char* cmd_line, time_t endTime = NULL) : BuiltInCommand(cmd_line, endTime) {}
+  explicit TimeoutCommand(const char* cmd_line, char* timedCommandLine = nullptr, time_t endTime = 0) 
+                                                      : BuiltInCommand(cmd_line, timedCommandLine,endTime) {}
   virtual ~TimeoutCommand() {}
   void execute() override;
 };
 
+
 class ChmodCommand : public BuiltInCommand {
   // TODO: Add your data members
  public:
-  ChmodCommand(const char* cmd_line, time_t endTime = NULL) : BuiltInCommand(cmd_line, endTime) {}
+  ChmodCommand(const char* cmd_line, char* timedCommandLine = nullptr, time_t endTime = 0) 
+                                                      : BuiltInCommand(cmd_line, timedCommandLine,endTime) {}
   virtual ~ChmodCommand() {}
   void execute() override;
 };
@@ -198,7 +218,8 @@ class ChmodCommand : public BuiltInCommand {
 class GetFileTypeCommand : public BuiltInCommand {
   // TODO: Add your data members
  public:
-  GetFileTypeCommand(const char* cmd_line, time_t endTime = NULL) : BuiltInCommand(cmd_line, endTime) {}
+  GetFileTypeCommand(const char* cmd_line, char* timedCommandLine = nullptr, time_t endTime = 0) 
+                                                      : BuiltInCommand(cmd_line, timedCommandLine,endTime) {}
   virtual ~GetFileTypeCommand() {}
   void execute() override;
 };
@@ -206,7 +227,8 @@ class GetFileTypeCommand : public BuiltInCommand {
 class SetcoreCommand : public BuiltInCommand {
   // TODO: Add your data members
  public:
-  SetcoreCommand(const char* cmd_line, time_t endTime = NULL) : BuiltInCommand(cmd_line, endTime) {}
+  SetcoreCommand(const char* cmd_line, char* timedCommandLine = nullptr, time_t endTime = 0) 
+                                                      : BuiltInCommand(cmd_line, timedCommandLine,endTime) {}
   virtual ~SetcoreCommand() {}
   void execute() override;
 };
@@ -214,7 +236,8 @@ class SetcoreCommand : public BuiltInCommand {
 class KillCommand : public BuiltInCommand {
  // TODO: Add your data members
  public:
-  KillCommand(const char* cmd_line, time_t endTime = NULL) : BuiltInCommand(cmd_line, endTime) {};
+  KillCommand(const char* cmd_line, char* timedCommandLine = nullptr, time_t endTime = 0) 
+                                                      : BuiltInCommand(cmd_line, timedCommandLine,endTime) {};
   virtual ~KillCommand() {}
   void execute() override;
 };
@@ -227,12 +250,14 @@ class SmallShell {
   JobsList::JobEntry* fg_job;
   pid_t smashPid;
 
+  public:
   struct TimedCommand {
     Command* cmd;
     pid_t pid;
   } typedef TimedCommand;
 
-  vector<TimedCommand*> timedJobs;
+  private:
+  vector<TimedCommand*> timedCommands;
 
   SmallShell(){
                 this->prompt = new char[6];
@@ -270,8 +295,43 @@ class SmallShell {
 
   JobsList::JobEntry* getFgJob() {return this->fg_job;}
   void setFgJob(JobsList::JobEntry* job) {this->fg_job = job;}
-  void addTimedJob(Command* cmd, pid_t pid);
-  void resetAlarm();
+  void addTimedCommand(Command* cmd, pid_t pid) {
+    TimedCommand* timedCmd = new TimedCommand();
+    timedCmd->cmd = cmd;
+    timedCmd->pid = pid;
+    
+    if (timedCommands.size() == 0) {
+      timedCommands.push_back(timedCmd);
+      return;
+    }
+
+    for (unsigned int i = 0; i < timedCommands.size(); i++) {
+      if (timedCommands[i]->cmd->getEndTime() > cmd->getEndTime()) {
+        timedCommands.insert(timedCommands.begin() + i, timedCmd);
+        return;
+      }
+    }
+
+    timedCommands.push_back(timedCmd);
+  }
+
+  TimedCommand* popHeadTimedCommand() {
+    TimedCommand* cmd = timedCommands[0];
+    timedCommands.erase(timedCommands.begin());
+    return cmd;
+  }
+
+  void resetAlarm() {
+    if(timedCommands.size() == 0) {
+      alarm(0);
+    }
+    else if(timedCommands[0]->cmd->getEndTime() - time(NULL) <= 0){
+      kill(getpid(), SIGALRM);
+    }
+    else {
+      alarm(timedCommands[0]->cmd->getEndTime() - time(NULL));
+    }
+  }
 };
 
 #endif //SMASH_COMMAND_H_
